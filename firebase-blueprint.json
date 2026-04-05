@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "News": {
+      "title": "News",
+      "description": "Blog posts or news updates for the insurance agent's site.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the news item." },
+        "content": { "type": "string", "description": "The full content of the news item." },
+        "excerpt": { "type": "string", "description": "A short summary of the news item." },
+        "imageUrl": { "type": "string", "format": "url", "description": "URL to the cover image." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation." },
+        "author": { "type": "string", "description": "Name of the author." }
+      },
+      "required": ["title", "content", "createdAt"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "Potential client contact information and request details.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the lead." },
+        "phone": { "type": "string", "description": "Phone number for contact." },
+        "email": { "type": "string", "format": "email", "description": "Email address for contact." },
+        "product": { "type": "string", "enum": ["VHI", "CASCO", "OSAGO", "Property", "Anti-tick"], "description": "The insurance product they are interested in." },
+        "message": { "type": "string", "description": "Additional details or questions." },
+        "status": { "type": "string", "enum": ["new", "contacted", "closed"], "description": "Current status of the lead." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of creation." }
+      },
+      "required": ["name", "phone", "product", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/news/{newsId}": {
+      "schema": "News",
+      "description": "Collection of news posts."
+    },
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "Collection of lead submissions."
+    }
+  }
+}

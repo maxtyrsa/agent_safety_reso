@@ -1,0 +1,104 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: news
+// Document ID: auto-generated
+// Fields:
+//   - title: string (required) - The title of the news item.
+//   - content: string (required) - The full content of the news item.
+//   - excerpt: string (optional) - A short summary.
+//   - imageUrl: string (optional, url) - URL to the cover image.
+//   - createdAt: timestamp (required) - Timestamp of creation.
+//   - author: string (optional) - Name of the author.
+//
+// Collection: leads
+// Document ID: auto-generated
+// Fields:
+//   - name: string (required) - Full name of the lead.
+//   - phone: string (required) - Phone number for contact.
+//   - email: string (optional, email) - Email address.
+//   - product: string (required, enum) - The insurance product.
+//   - message: string (optional) - Additional details.
+//   - status: string (required, enum) - Current status (new, contacted, closed).
+//   - createdAt: timestamp (required) - Timestamp of creation.
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "max200779@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string &&
+        (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // ===============================================================
+    // News Rules
+    // ===============================================================
+    
+    match /news/{newsId} {
+      // News is publicly readable
+      allow read: if true;
+      
+      // Only admin can create/update/delete news
+      allow create: if isAdmin() && 
+        request.resource.data.title is string && request.resource.data.title.size() > 0 &&
+        request.resource.data.content is string && request.resource.data.content.size() > 0 &&
+        request.resource.data.createdAt is timestamp;
+        
+      allow update: if isAdmin() && 
+        request.resource.data.title is string && request.resource.data.title.size() > 0 &&
+        request.resource.data.content is string && request.resource.data.content.size() > 0;
+        
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // Leads Rules
+    // ===============================================================
+    
+    match /leads/{leadId} {
+      // Leads can be created by anyone (public form)
+      allow create: if 
+        request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() < 100 &&
+        request.resource.data.phone is string && request.resource.data.phone.size() > 0 && request.resource.data.phone.size() < 20 &&
+        request.resource.data.product in ["VHI", "CASCO", "OSAGO", "Property", "Anti-tick"] &&
+        request.resource.data.status == "new" &&
+        request.resource.data.createdAt == request.time;
+        
+      // Only admin can read/update/delete leads
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // Users Rules (for roles)
+    // ===============================================================
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // Only admin can set roles
+      allow write: if isAdmin();
+    }
+  }
+}
