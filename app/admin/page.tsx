@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { auth, db, handleFirestoreError, OperationType, testConnection } from '@/lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/Button';
@@ -24,7 +24,6 @@ export default function AdminPage() {
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    testConnection();
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -54,6 +53,20 @@ export default function AdminPage() {
 
   const handleLogin = async () => {
     try {
+      // Проверяем rate limit перед попыткой входа
+      const rateResponse = await fetch('/api/auth-rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login' }),
+      });
+
+      const rateResult = await rateResponse.json();
+
+      if (!rateResult.allowed) {
+        console.error('Login rate limit exceeded:', rateResult.error);
+        return;
+      }
+
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
     } catch (err) {

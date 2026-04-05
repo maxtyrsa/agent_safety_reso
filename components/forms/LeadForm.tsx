@@ -4,19 +4,17 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Button } from '@/components/ui/Button';
 import { motion } from 'motion/react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import { validatePhoneNumber } from '@/lib/phoneValidator';
+import { validatePhone, formatPhoneAsYouType } from '@/lib/phoneValidator';
 
 const leadSchema = z.object({
   name: z.string().min(2, 'Имя должно содержать минимум 2 символа'),
   phone: z.string()
     .min(10, 'Пожалуйста, введите корректный номер телефона')
     .refine(
-      (val) => validatePhoneNumber(val).valid,
+      (val) => validatePhone(val).valid,
       'Пожалуйста, введите корректный номер телефона в формате +7 (XXX) XXX-XX-XX'
     ),
   email: z.string().email('Пожалуйста, введите корректный email').optional().or(z.literal('')),
@@ -45,17 +43,23 @@ export const LeadForm = () => {
   const onSubmit = async (data: LeadFormData) => {
     setError(null);
     try {
-      const leadsRef = collection(db, 'leads');
-      await addDoc(leadsRef, {
-        ...data,
-        status: 'new',
-        createdAt: serverTimestamp(),
+      const response = await fetch('/api/submit-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || 'Что-то пошло не так. Пожалуйста, попробуйте позже.');
+        return;
+      }
+
       setIsSubmitted(true);
       reset();
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'leads');
-      setError('Что-то пошло не так. Пожалуйста, попробуйте позже.');
+    } catch {
+      setError('Ошибка сети. Пожалуйста, проверьте подключение к интернету.');
     }
   };
 
@@ -86,44 +90,45 @@ export const LeadForm = () => {
       </div>
 
       {error && (
-        <div className="flex items-center space-x-2 rounded-lg bg-red-50 p-4 text-red-700">
-          <AlertCircle className="h-5 w-5" />
+        <div className="flex items-center space-x-2 rounded-lg bg-red-50 p-4 text-red-700" role="alert">
+          <AlertCircle className="h-5 w-5" aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">ФИО *</label>
+          <label htmlFor="name" className="text-sm font-medium text-gray-700">ФИО *</label>
           <input
+            id="name"
             {...register('name')}
             className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             placeholder="Иван Иванов"
           />
-          {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+          {errors.name && <p className="text-xs text-red-500" role="alert">{errors.name.message}</p>}
         </div>
 
         <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Номер телефона *</label>
+          <label htmlFor="phone" className="text-sm font-medium text-gray-700">Номер телефона *</label>
           <input
+            id="phone"
             {...register('phone')}
             className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             placeholder="+7 (999) 000-00-00"
             onChange={(e) => {
-              const formatted = validatePhoneNumber(e.target.value).formatted;
-              if (formatted) {
-                e.target.value = formatted;
-              }
+              const formatted = formatPhoneAsYouType(e.target.value);
+              e.target.value = formatted;
               register('phone').onChange(e);
             }}
           />
-          {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
+          {errors.phone && <p className="text-xs text-red-500" role="alert">{errors.phone.message}</p>}
         </div>
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm font-medium text-gray-700">Продукт страхования *</label>
+        <label htmlFor="product" className="text-sm font-medium text-gray-700">Продукт страхования *</label>
         <select
+          id="product"
           {...register('product')}
           className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
         >
@@ -136,8 +141,9 @@ export const LeadForm = () => {
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm font-medium text-gray-700">Сообщение (необязательно)</label>
+        <label htmlFor="message" className="text-sm font-medium text-gray-700">Сообщение (необязательно)</label>
         <textarea
+          id="message"
           {...register('message')}
           rows={3}
           className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"

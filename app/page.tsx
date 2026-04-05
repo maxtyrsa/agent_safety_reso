@@ -8,7 +8,7 @@ import { Services } from '@/components/home/Services';
 import { InsuranceCalculator } from '@/components/calculator/InsuranceCalculator';
 import { LeadForm } from '@/components/forms/LeadForm';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType, testConnection } from '@/lib/firebase';
+import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { motion } from 'motion/react';
 import { Calendar, User, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
@@ -28,7 +28,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    testConnection();
     const q = query(collection(db, 'news'), orderBy('createdAt', 'desc'), limit(3));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
