@@ -9,10 +9,16 @@ import { db, handleFirestoreError, OperationType } from '@/lib/firebase';
 import { Button } from '@/components/ui/Button';
 import { motion } from 'motion/react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { validatePhoneNumber } from '@/lib/phoneValidator';
 
 const leadSchema = z.object({
   name: z.string().min(2, 'Имя должно содержать минимум 2 символа'),
-  phone: z.string().min(10, 'Пожалуйста, введите корректный номер телефона'),
+  phone: z.string()
+    .min(10, 'Пожалуйста, введите корректный номер телефона')
+    .refine(
+      (val) => validatePhoneNumber(val).valid,
+      'Пожалуйста, введите корректный номер телефона в формате +7 (XXX) XXX-XX-XX'
+    ),
   email: z.string().email('Пожалуйста, введите корректный email').optional().or(z.literal('')),
   product: z.enum(['VHI', 'CASCO', 'OSAGO', 'Property', 'Anti-tick']),
   message: z.string().max(500, 'Сообщение слишком длинное').optional(),
@@ -103,6 +109,13 @@ export const LeadForm = () => {
             {...register('phone')}
             className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             placeholder="+7 (999) 000-00-00"
+            onChange={(e) => {
+              const formatted = validatePhoneNumber(e.target.value).formatted;
+              if (formatted) {
+                e.target.value = formatted;
+              }
+              register('phone').onChange(e);
+            }}
           />
           {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
         </div>
